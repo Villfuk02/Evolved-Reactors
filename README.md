@@ -1,6 +1,6 @@
 # Evolved-Reactors
 
-NuclearCraft Reactor Generator for Enigmatica 2 Expert.
+NuclearCraft fission reactor generator for Enigmatica 2 Expert.
 
 Works using an evolution algorithm. It can also calculate various metrics of your design.
 
