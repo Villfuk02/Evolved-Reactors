@@ -6,13 +6,11 @@ namespace Fission
 {
     internal record struct Vector3(int X, int Y, int Z)
     {
-        public static readonly Vector3[] DIRS = new Vector3[] { new(0, 1, 0), new(0, -1, 0), new(0, 0, -1), new(0, 0, 1), new(1, 0, 0), new(-1, 0, 0) };
+        public static readonly Vector3[] DIRS = { new(0, 1, 0), new(0, -1, 0), new(0, 0, -1), new(0, 0, 1), new(1, 0, 0), new(-1, 0, 0) };
         public static readonly Vector3 ZERO = new(0, 0, 0);
-        public int Volume => X * Y * Z;
-        public bool InBounds(Vector3 min, Vector3 max)
-        {
-            return X >= min.X && X < max.X && Y >= min.Y && Y < max.Y && Z >= min.Z && Z < max.Z;
-        }
+        public readonly int Volume => X * Y * Z;
+        public readonly bool InBounds(Vector3 min, Vector3 max) => X >= min.X && X < max.X && Y >= min.Y && Y < max.Y && Z >= min.Z && Z < max.Z;
+
         public static void ForEachInside(Vector3 min, Vector3 max, Action<Vector3> action)
         {
             for (int x = min.X; x < max.X; x++)
@@ -26,10 +24,7 @@ namespace Fission
                 }
             }
         }
-        public void ForEachInside(Action<Vector3> action)
-        {
-            ForEachInside(ZERO, this, action);
-        }
+        public readonly void ForEachInside(Action<Vector3> action) => ForEachInside(ZERO, this, action);
         public static Vector3 operator -(Vector3 v) => new(-v.X, -v.Y, -v.Z);
         public static Vector3 operator +(Vector3 a, Vector3 b) => new(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
         public static Vector3 operator -(Vector3 a, Vector3 b) => new(a.X - b.X, a.Y - b.Y, a.Z - b.Z);
@@ -39,62 +34,58 @@ namespace Fission
     internal class Layout
     {
         public readonly Vector3 size;
-        readonly Block[,,] blocks;
-        float efficiency;
-        float heatMultiplier;
-        int cooling;
-        int cells;
-        int moderators;
-        int air;
-        bool cached;
+        readonly Block[,,] blocks_;
+        float efficiency_;
+        float heatMultiplier_;
+        int cooling_;
+        int cells_;
+        int moderators_;
+        int air_;
+        bool cached_;
         public Layout(Vector3 size)
         {
             this.size = size;
-            blocks = new Block[size.X, size.Y, size.Z];
+            blocks_ = new Block[size.X, size.Y, size.Z];
             for (int x = 0; x < size.X; x++)
             {
                 for (int y = 0; y < size.Y; y++)
                 {
                     for (int z = 0; z < size.Z; z++)
                     {
-                        blocks[x, y, z] = Block.AIR;
+                        blocks_[x, y, z] = Block.AIR;
                     }
                 }
             }
-            cached = false;
+            cached_ = false;
         }
         public Layout(Block[,,] blocks)
         {
             size = new(blocks.GetLength(0), blocks.GetLength(1), blocks.GetLength(2));
-            this.blocks = blocks;
-            cached = false;
-        }
-        private Block this[Vector3 pos]
-        {
-            get => blocks[pos.X, pos.Y, pos.Z];
-            set => blocks[pos.X, pos.Y, pos.Z] = value;
+            blocks_ = blocks;
+            cached_ = false;
         }
 
-        public Block GetAt(Vector3 pos)
+        Block this[Vector3 pos]
         {
-            if (!pos.InBounds(Vector3.ZERO, size))
-                return Block.CASING;
-            return this[pos];
+            get => blocks_[pos.X, pos.Y, pos.Z];
+            set => blocks_[pos.X, pos.Y, pos.Z] = value;
         }
+
+        public Block GetAt(Vector3 pos) => pos.InBounds(Vector3.ZERO, size) ? this[pos] : Block.CASING;
 
         public void SetAt(Vector3 pos, Block b)
         {
             if (!pos.InBounds(Vector3.ZERO, size))
                 return;
-            cached = false;
+            cached_ = false;
             this[pos] = b;
         }
 
-        public void Validate(Vector3 pos)
+        public void Validate(Vector3 position)
         {
-            HashSet<Vector3> toValidate = new() { pos };
+            HashSet<Vector3> toValidate = new() { position };
             Queue<Vector3> queue = new();
-            queue.Enqueue(pos);
+            queue.Enqueue(position);
 
             void ValidateInternal(Vector3 pos)
             {
@@ -137,59 +128,59 @@ namespace Fission
 
         public float GetPowerEfficiency()
         {
-            if (!cached)
+            if (!cached_)
                 Recalculate();
-            return efficiency;
+            return efficiency_;
         }
         public float GetHeatMultiplier()
         {
-            if (!cached)
+            if (!cached_)
                 Recalculate();
-            return heatMultiplier;
+            return heatMultiplier_;
         }
         public float GetCooling()
         {
-            if (!cached)
+            if (!cached_)
                 Recalculate();
-            return cooling;
+            return cooling_;
         }
         public int GetCells()
         {
-            if (!cached)
+            if (!cached_)
                 Recalculate();
-            return cells;
+            return cells_;
         }
 
         public int GetModerators()
         {
-            if (!cached)
+            if (!cached_)
                 Recalculate();
-            return moderators;
+            return moderators_;
         }
         public int GetAir()
         {
-            if (!cached)
+            if (!cached_)
                 Recalculate();
-            return air;
+            return air_;
         }
 
         void Recalculate()
         {
-            cells = 0;
-            moderators = 0;
-            air = 0;
-            efficiency = 0;
-            heatMultiplier = 0;
-            cooling = 0;
+            cells_ = 0;
+            moderators_ = 0;
+            air_ = 0;
+            efficiency_ = 0;
+            heatMultiplier_ = 0;
+            cooling_ = 0;
             size.ForEachInside(p =>
             {
                 Block b = this[p];
-                cooling += b.Cooling;
+                cooling_ += b.Cooling;
                 if (b == Block.REACTOR_CELL)
                 {
-                    cells++;
-                    int cell_efficiency = 1;
-                    int active_moderators = 0;
+                    cells_++;
+                    int cellEfficiency = 1;
+                    int activeModerators = 0;
                     foreach (Vector3 d in Vector3.DIRS)
                     {
                         for (int i = 1; i <= 5; i++)
@@ -197,53 +188,56 @@ namespace Fission
                             Block bb = GetAt(p + i * d);
                             if (bb == Block.REACTOR_CELL)
                             {
-                                cell_efficiency++;
+                                cellEfficiency++;
                                 break;
                             }
-                            else if (bb != Block.ACTIVE_MODERATOR && bb != Block.MODERATOR)
+
+                            if (bb != Block.ACTIVE_MODERATOR && bb != Block.MODERATOR)
                             {
                                 break;
                             }
                             if (i == 1)
-                                active_moderators++;
+                                activeModerators++;
                         }
                     }
-                    efficiency += cell_efficiency * (6 + active_moderators);
-                    heatMultiplier += cell_efficiency * (3 + 3 * cell_efficiency + 2 * active_moderators);
+                    efficiency_ += cellEfficiency * (6 + activeModerators);
+                    heatMultiplier_ += cellEfficiency * (3 + 3 * cellEfficiency + 2 * activeModerators);
                 }
                 else if (b == Block.ACTIVE_MODERATOR || b == Block.MODERATOR)
                 {
-                    moderators++;
+                    moderators_++;
                 }
                 else if (b == Block.AIR)
                 {
-                    air++;
+                    air_++;
                 }
             });
-            efficiency /= 6 * cells;
-            heatMultiplier /= 6 * cells;
-            cached = true;
+            efficiency_ /= 6 * cells_;
+            heatMultiplier_ /= 6 * cells_;
+            cached_ = true;
         }
 
-        public void PrintFuelInfo(FuelStatsOption fuel)
+        public void PrintFuelInfo(FuelOption fuel)
         {
-            string safe = IsSafe(fuel.Value.heat) ? "Safe" : "Unsafe";
-            Console.WriteLine($"{safe}, Effective Power: {EffectivePower(fuel.Value.heat, fuel.Value.power):F0}RF/t, Energy per fuel: {EnergyPerFuel(fuel.Value.power, fuel.Value.time) / 1_000_000:F2} MRF");
+            float heat = fuel.Value.heat;
+            float power = fuel.Value.power;
+            string safe = IsSafe(heat) ? "SAFE" : "UNSAFE";
+            Console.WriteLine($"Fuel: {fuel.Value} | {safe} (Net heat: {NetHeat(heat):F0}H/t, Duty Cycle: {DutyCycle(heat) * 100:F1}%)");
+            Console.WriteLine($"Fuel Usage Rate: {FuelUsageRate(heat):F1}x, Max Power: {MaxPower(power):F0}RF/t, Effective Power: {EffectivePower(heat, power):F0}RF/t");
         }
 
         public void PrintInfo()
         {
-            if (!cached)
+            if (!cached_)
                 Recalculate();
-            Console.WriteLine($"Cells: {cells}, Efficiency: {efficiency * 100:F1}%, Heat multiplier: {heatMultiplier * 100:F1}%, Cooling: -{cooling}H/t");
+            Console.WriteLine($"Cells: {cells_}, Efficiency: {efficiency_ * 100:F1}%, Heat multiplier: {heatMultiplier_ * 100:F1}%, Cooling: -{cooling_}H/t");
             Console.WriteLine();
             Console.WriteLine($"{2 * (size.X * size.Y + size.Y * size.Z + size.Z * size.X)}x Reactor Casing");
             Dictionary<Block, int> blockCounts = new();
             size.ForEachInside(p =>
             {
                 Block b = this[p];
-                if (!blockCounts.ContainsKey(b))
-                    blockCounts[b] = 0;
+                blockCounts.TryAdd(b, 0);
                 blockCounts[b]++;
             });
             if (blockCounts.ContainsKey(Block.ACTIVE_MODERATOR) && blockCounts.ContainsKey(Block.MODERATOR))
@@ -268,7 +262,7 @@ namespace Fission
                     sb.Clear();
                     for (int x = 0; x < size.X; x++)
                     {
-                        sb.Append(blocks[x, y, z].Symbol);
+                        sb.Append(blocks_[x, y, z].Symbol);
                     }
                     Console.WriteLine(sb.ToString());
                 }
@@ -290,7 +284,7 @@ namespace Fission
                 for (int z = 0; z < size.Z; z++)
                 {
                     string line = Console.ReadLine();
-                    while (line.Contains(':'))
+                    while (line!.Contains(':'))
                         line = Console.ReadLine();
                     for (int x = 0; x < size.X; x++)
                     {
@@ -304,26 +298,14 @@ namespace Fission
             return l;
         }
 
-        public float ProjectedHeat(float baseHeat)
-        {
-            return GetHeatMultiplier() * baseHeat * GetCells() - GetCooling();
-        }
-
-        public bool IsSafe(float baseHeat)
-        {
-            return ProjectedHeat(baseHeat) <= 0;
-        }
-
-        public float EffectivePower(float baseHeat, float basePower)
-        {
-            float projectedPower = basePower * GetPowerEfficiency() * GetCells();
-            return IsSafe(baseHeat) ? projectedPower : projectedPower * GetCooling() / (baseHeat * GetHeatMultiplier() * GetCells());
-        }
-
-        public float EnergyPerFuel(float basePower, float timeMin)
-        {
-            return basePower * GetPowerEfficiency() * timeMin * 1200;
-        }
+        public float NetHeat(float baseHeat) => GetHeatMultiplier() * baseHeat * GetCells() - GetCooling();
+        public bool IsSafe(float baseHeat) => NetHeat(baseHeat) <= 0;
+        public float DutyCycle(float baseHeat) => IsSafe(baseHeat) ? 1 : GetCooling() / (baseHeat * GetHeatMultiplier() * GetCells());
+        public float MaxPower(float basePower) => basePower * GetPowerEfficiency() * GetCells();
+        public float EffectivePower(float baseHeat, float basePower) => MaxPower(basePower) * DutyCycle(baseHeat);
+        public float FuelUsageRate(float baseHeat) => GetCells() * DutyCycle(baseHeat);
+        public float EnergyPerFuel(float basePower, float timeMin) => basePower * GetPowerEfficiency() * timeMin * 1200;
+        public string GetSummary(float baseHeat, float basePower) => $"{FuelUsageRate(baseHeat):F1}x, {GetPowerEfficiency() * 100:F1}%, {EffectivePower(baseHeat, basePower):F0} RF/t";
 
         public Layout Copy()
         {
@@ -336,13 +318,12 @@ namespace Fission
         {
             size.ForEachInside(pos =>
             {
-                if (!this[pos].IsValid(GetNeighbors(pos)))
-                {
-                    if (this[pos] == Block.MODERATOR)
-                        this[pos] = Block.ACTIVE_MODERATOR;
-                    else if (this[pos] == Block.ACTIVE_MODERATOR)
-                        this[pos] = Block.MODERATOR;
-                }
+                if (this[pos].IsValid(GetNeighbors(pos)))
+                    return;
+                if (this[pos] == Block.MODERATOR)
+                    this[pos] = Block.ACTIVE_MODERATOR;
+                else if (this[pos] == Block.ACTIVE_MODERATOR)
+                    this[pos] = Block.MODERATOR;
             });
         }
 
@@ -357,7 +338,7 @@ namespace Fission
                     if (z != 0) sb.Append('|');
                     for (int x = 0; x < size.X; x++)
                     {
-                        sb.Append(blocks[x, y, z].Symbol);
+                        sb.Append(blocks_[x, y, z].Symbol);
                     }
                 }
             }

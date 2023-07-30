@@ -1,0 +1,9 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/Evolved-Reactors/obj
+/.vs/Evolved-Reactors
+/Evolved-Reactors/bin/Debug/net6.0
+/.vs/ProjectEvaluation
+/Evolved-Reactors/bin/Release/net6.0

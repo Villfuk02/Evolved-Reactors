@@ -7,10 +7,11 @@ namespace Fission
 {
     internal abstract class Option<T>
     {
-        protected T value;
+        public T value;
         protected readonly string description;
-        public T Value { get => value; }
-        public Option(T value, string description)
+        public T Value => value;
+
+        protected Option(T value, string description)
         {
             this.value = value;
             this.description = description;
@@ -26,7 +27,7 @@ namespace Fission
                 else
                     Console.Write($"{description} ({DisplayValue()}) [{inputInstructions}]: ");
                 input = Console.ReadLine();
-                if (input is null || input.Trim() is "")
+                if (value != null && (input is null || input.Trim() is ""))
                     break;
             } while (!ParseInput(input.Trim(), out value));
         }
@@ -63,7 +64,7 @@ namespace Fission
         protected override bool ParseInput(string input, out Vector3 value)
         {
             value = new();
-            string[] parts = input.Split(' ', ',');
+            string[] parts = input.Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length != 3) return false;
             if (!int.TryParse(parts[0].Trim(), out int x)) return false;
             if (!int.TryParse(parts[1].Trim(), out int y)) return false;
@@ -76,10 +77,10 @@ namespace Fission
     }
     internal class BlockSetOption : Option<HashSet<Block>>
     {
-        readonly Block[] options;
+        readonly Block[] options_;
         public BlockSetOption(IEnumerable<Block> options, string description) : base(new(options), "Configure " + description)
         {
-            this.options = options.ToArray();
+            options_ = options.ToArray();
         }
 
         protected override bool ParseInput(string input, out HashSet<Block> value)
@@ -90,7 +91,7 @@ namespace Fission
             if (input.ToLower() != "y")
                 return false;
             HashSet<Block> newBlocks = new();
-            foreach (Block o in options)
+            foreach (Block o in options_)
             {
                 BoolOption include = new(this.value.Contains(o), o.ToString());
                 include.LoadFromInput();
@@ -111,21 +112,55 @@ namespace Fission
             return sb.ToString();
         }
     }
-    internal class FuelStatsOption : Option<(float power, float heat, float time)>
-    {
-        public FuelStatsOption() : base((1008, 75, 30), "Fuel stats") { }
 
-        protected override bool ParseInput(string input, out (float power, float heat, float time) value)
+    internal class FuelOption : Option<Fuel>
+    {
+        public FuelOption() : base(null, "Fuel") { }
+
+        protected override bool ParseInput(string input, out Fuel value)
         {
-            value = new();
-            string[] parts = input.Split(' ', ',');
+            value = null;
+            if (input.Trim() == "" || string.Equals(input.Trim(), "ADD", StringComparison.InvariantCultureIgnoreCase))
+            {
+                var o = new AddFuelOption();
+                o.LoadFromInput();
+                value = o;
+            }
+            else
+            {
+                value = Fuel.ALL.Find(f => string.Equals(input.Trim(), f.Name, StringComparison.InvariantCultureIgnoreCase));
+            }
+            return value != null;
+        }
+        protected override string InputInstructions() => $" {string.Concat(Fuel.ALL.Select(f => f.Name.ToLowerInvariant() + " | "))}ADD ";
+
+        protected override string DisplayValue() => value == null ? "" : value.ToString();
+    }
+
+    internal class AddFuelOption : Option<Fuel>
+    {
+        public AddFuelOption() : base(null, "Add fuel") { }
+
+        protected override bool ParseInput(string input, out Fuel value)
+        {
+            value = null;
+            string[] parts = input.Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length != 3) return false;
-            if (!float.TryParse(parts[0].Trim(), out float p)) return false;
-            if (!float.TryParse(parts[1].Trim(), out float h)) return false;
-            if (!float.TryParse(parts[2].Trim(), out float t)) return false;
-            value = (p, h, t);
+            string n = parts[0].Trim();
+            if (!float.TryParse(parts[1].Trim(), out float p)) return false;
+            if (!float.TryParse(parts[2].Trim(), out float h)) return false;
+            if (Fuel.ALL.Any(f => string.Equals(n, f.Name, StringComparison.InvariantCultureIgnoreCase)))
+            {
+                Console.WriteLine($"Fuel with name {n} already exists!");
+                return false;
+            }
+
+            value = new(n, p, h);
+            Fuel.ALL.Add(value);
             return true;
         }
-        protected override string InputInstructions() => "base power (RF/t), base heat (H/t), time (min)";
+        protected override string InputInstructions() => "name, base power (RF/t), base heat (H/t)";
+        protected override string DisplayValue() => value == null ? "" : value.ToString();
+        public bool Parse(string input, out Fuel value) => ParseInput(input, out value);
     }
 }

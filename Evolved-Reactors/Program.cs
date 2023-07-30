@@ -6,6 +6,25 @@ namespace Fission
     {
         static void Main(string[] args)
         {
+            string configPath = "";
+            if (args.Length == 1)
+                configPath = args[0];
+            while (configPath == "")
+            {
+                Console.Write("Provide a path to a configuration file: ");
+                configPath = Console.ReadLine();
+                if (configPath == null)
+                    return;
+            }
+
+            string error = ConfigLoader.LoadConfig(configPath);
+            if (error != null)
+            {
+                Console.WriteLine($"ERROR: {error}");
+                Console.ReadKey(true);
+                return;
+            }
+
             Console.WriteLine("Select mode: [T] Test layout | [G] Generate layout");
             var k = Console.ReadKey(true);
             if (k.Key == ConsoleKey.G)
@@ -19,7 +38,7 @@ namespace Fission
                 Console.WriteLine();
                 l.PrintInfo();
                 Console.WriteLine();
-                FuelStatsOption fuel = new();
+                FuelOption fuel = new();
                 while (true)
                 {
                     fuel.LoadFromInput();

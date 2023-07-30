@@ -1,13 +1,15 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace Fission
 {
-    internal record class Block(string Name, char Symbol, int Cooling, Func<Neighbors, bool> IsValid)
+    internal class Block
     {
+        public static readonly List<Block> ALL = new();
         // ALL VALUES ARE FROM ENIGMATICA 2 EXPERT
-        public static readonly Block CASING = new("Casing", '#', 0, n => false);
-        public static readonly Block AIR = new("Air", ' ', 0, n => true);
-        public static readonly Block REACTOR_CELL = new("Reactor Cell", 'X', 0, n => true);
+        public static readonly Block CASING = new("Casing", '#', 0, _ => false);
+        public static readonly Block AIR = new("Air", ' ', 0, _ => true);
+        public static readonly Block REACTOR_CELL = new("Reactor Cell", 'X', 0, _ => true);
         public static readonly Block MODERATOR = new("Moderator", '+', 0, n => n.Count(ACTIVE_MODERATOR) + n.Count(MODERATOR) > 0 && n.Count(REACTOR_CELL) == 0);
         public static readonly Block ACTIVE_MODERATOR = new("Moderator", '+', 0, n => n.Count(REACTOR_CELL) > 0);
         public static readonly Block WATER = new("Water Cooler", 'W', 20, n => n.Count(ACTIVE_MODERATOR) + n.Count(REACTOR_CELL) > 0);
@@ -26,22 +28,24 @@ namespace Fission
         public static readonly Block TIN = new("Tin Cooler", 'T', 80, n => (n.T == LAPIS && n.B == LAPIS) || (n.N == LAPIS && n.S == LAPIS) || (n.E == LAPIS && n.W == LAPIS));
         public static readonly Block MAGNESIUM = new("Magnesium Cooler", 'M', 100, n => n.Count(ACTIVE_MODERATOR) > 0 && n.Count(CASING) > 0);
 
-        static readonly Block[] ALL = new Block[] { CASING, AIR, REACTOR_CELL, MODERATOR, ACTIVE_MODERATOR, WATER, REDSTONE, QUARTZ, GOLD, GLOWSTONE, LAPIS, DIAMOND, HELIUM, ENDERIUM, CRYOTHEUM, IRON, EMERALD, COPPER, TIN, MAGNESIUM };
 
-        public static Block FromSymbol(char s)
+        public Block(string name, char symbol, int cooling, Func<Neighbors, bool> isValid)
         {
-            foreach (Block block in ALL)
-            {
-                if (block.Symbol == s)
-                    return block;
-            }
-            return AIR;
+            Name = name;
+            Symbol = symbol;
+            Cooling = cooling;
+            IsValid = isValid;
+            ALL.Add(this);
         }
 
-        public override string ToString()
-        {
-            return $"{Name} ({Symbol})";
-        }
+        public string Name { get; init; }
+        public char Symbol { get; init; }
+        public int Cooling { get; set; }
+        public Func<Neighbors, bool> IsValid { get; init; }
+
+        public static Block FromSymbol(char s) => ALL.Find(block => block.Symbol == s) ?? AIR;
+
+        public override string ToString() => $"{Name} ({Symbol})";
     }
 
     internal readonly record struct Neighbors(Block T, Block B, Block N, Block S, Block E, Block W)
